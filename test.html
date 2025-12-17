@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта заболеваний РФ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            border: 3px solid #ddd;
+            overflow: hidden;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        #region-info {
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            min-height: 100px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .highlight {
+            color: #2c3e50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .controls {
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .year-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .district-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #districtSelect {
+            min-width: 200px;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Карта заболеваемости врожденными аномалиями в РФ</h1>
+            <p>Кликните на регион для просмотра данных</p>
+        </header>
+        
+        <div class="controls">
+            <div class="year-selector">
+                <span>Год:</span>
+                <select id="yearSelect">
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                    <option value="2021">2021</option>
+                    <option value="2020">2020</option>
+                    <option value="2019">2019</option>
+                </select>
+            </div>
+            <div class="district-selector">
+                <span>Федеральный округ:</span>
+                <select id="districtSelect">
+                    <option value="all">Вся Россия</option>
+                    <option value="0">Центральный ФО</option>
+                    <option value="1">Южный ФО</option>
+                    <option value="2">Северо-Кавказский ФО</option>
+                    <option value="3">Приволжский ФО</option>
+                    <option value="4">Уральский ФО</option>
+                    <option value="5">Сибирский ФО</option>
+                    <option value="6">Дальневосточный ФО</option>
+                    <option value="8" selected>Северо-Западный ФО</option>
+                </select>
+            </div>
+            <div id="map-title">Заболеваемость на 100 000 населения</div>
+        </div>
+        
+        <div class="map-wrapper">
+            <div id="map"></div>
+            <div class="loading" id="loading">Загрузка карты...</div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>Информация о регионе:</h3>
+            <div id="region-info">
+                Выберите регион на карте для отображения данных
+            </div>
+        </div>
+    </div>
+
+    <script src="mapdata.js"></script>
+    <script>
+        // Сначала загрузим и подготовим данные
+        document.addEventListener('DOMContentLoaded', function() {
+            const loading = document.getElementById('loading');
+            const regionInfo = document.getElementById('region-info');
+            const yearSelect = document.getElementById('yearSelect');
+            const districtSelect = document.getElementById('districtSelect');
+            const mapTitle = document.getElementById('map-title');
+            
+            let currentSelectedRegionId = null; // Добавьте эту переменную
+            let currentViewMode = 'district'; // 'all', 'district', 'region'
+            let currentDistrictId = '8'; // По умолчанию СЗФО
+            
+            // Определяем какие регионы должны быть видны (только из нужных федеральных округов)
+            const visibleRegions = [
+                // Центральный ФО
+                'RUMOS', 'RUMOW', 'RUBEL', 'RUBRY', 'RUIVA', 'RUKLU', 'RUKOS', 'RUKRS', 'RULIP', 
+                'RUORL', 'RUPNZ', 'RURYA', 'RUSMO', 'RUTAM', 'RUTUL', 'RUTVE', 'RUVLA', 'RUVOR', 'RUYAR',
+                // Южный ФО
+                'RUAD', 'RUAST', 'RUKDA', 'RUKL', 'RUSTA', 'RUVGG', 'RUROS',
+                // Северо-Кавказский ФО
+                'RUDA', 'RUIN', 'RUKB', 'RUKC', 'RUSE', 'RUTA', 'RUCE',
+                // Приволжский ФО
+                'RUBA', 'RUKIR', 'RUME', 'RUMO', 'RUNIZ', 'RUORE', 'RUPER', 'RUSAM', 'RUSAR', 'RUUD', 'RUULY', 'RUCU',
+                // Уральский ФО
+                'RUKHM', 'RUYAN', 'RUTYU', 'RUCHE', 'RUKGN', 'RUSVE',
+                // Сибирский ФО
+                'RUAL', 'RUALT', 'RUBU', 'RUKEM', 'RUKK', 'RUNVS', 'RUOMS', 'RUTOM', 'RUTY', 'RUKYA', 'RUIRK', 'RUMAG',
+                // Дальневосточный ФО
+                'RUKAM', 'RUKHA', 'RUSAK', 'RUYEV', 'RUCHU', 'RUAMU', 'RUSA', 'RUPRI', 'RUZAB',
+                // Северо-Западный ФО (СЗФО)
+                'RUARK', 'RUNEN', 'RUKR', 'RULEN', 'RUMUR', 'RUNGR', 'RUPSK', 'RUSPE', 'RUVLG', 'RUKGD'
+            ];
+
+            // Скрываем все регионы, которые не входят в список visibleRegions
+            for (const regionCode in simplemaps_countrymap_mapdata.state_specific) {
+                if (!visibleRegions.includes(regionCode)) {
+                    const region = simplemaps_countrymap_mapdata.state_specific[regionCode];
+                    // Делаем регион невидимым и неинтерактивным
+                    region.hide = "yes";
+                    region.inactive = "yes";
+                    region.color = "#f0f0f0"; // Серый цвет для неактивных
+                }
+            }
+            
+            // Функция обновления данных регионов для выбранного года
+            function updateRegionsForYear(year) {
+                for (const regionCode in simplemaps_countrymap_mapdata.state_specific) {
+                    const region = simplemaps_countrymap_mapdata.state_specific[regionCode];
+                    
+                    if (region.morbidity && region.morbidity[year]) {
+                        const data = region.morbidity[year].congenital_anomalies;
+                        
+                        // Обновляем описание для всплывающего окна
+                        region.description = `
+                            <strong>${region.name}</strong><br/>
+                            Данные за ${year} год:<br/>
+                            Абсолютное число: ${data.absolute_numbers.toLocaleString()}<br/>
+                            На 100 000 населения: ${data.per_100000.toFixed(1)}
+                        `;
+                        
+                        // Обновляем цвет в зависимости от данных
+                        const rate = data.per_100000;
+                        if (rate > 8000) {
+                            region.color = "#8B0000"; // Темно-красный
+                        } else if (rate > 6000) {
+                            region.color = "#FF4500"; // Оранжево-красный
+                        } else if (rate > 4000) {
+                            region.color = "#FFA500"; // Оранжевый
+                        } else if (rate > 2000) {
+                            region.color = "#FFD700"; // Золотой
+                        } else {
+                            region.color = "#F0E68C"; // Хаки
+                        }
+                    } else if (region.morbidity) {
+                        // Берем последний доступный год
+                        const years = Object.keys(region.morbidity).sort().reverse();
+                        if (years.length > 0) {
+                            const latestYear = years[0];
+                            const data = region.morbidity[latestYear].congenital_anomalies;
+                            region.description = `
+                                <strong>${region.name}</strong><br/>
+                                Данные за ${latestYear} год (${year} недоступен):<br/>
+                                Абсолютное число: ${data.absolute_numbers.toLocaleString()}<br/>
+                                На 100 000 населения: ${data.per_100000.toFixed(1)}
+                            `;
+                        } else {
+                            region.description = `<strong>${region.name}</strong><br/>Данные отсутствуют`;
+                        }
+                        region.color = "#D3D3D3"; // Серый для отсутствующих данных
+                    } else {
+                        region.description = `<strong>${region.name}</strong><br/>Данные о заболеваемости отсутствуют`;
+                        region.color = "#D3D3D3"; // Серый для отсутствующих данных
+                    }
+                }
+            }
+            
+            // Загрузим скрипт карты динамически
+            function loadMapScript() {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'countrymap.js';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+            
+            // Функция показа данных региона
+            function showRegionData(regionId) {
+                const region = simplemaps_countrymap_mapdata.state_specific[regionId];
+                const selectedYear = yearSelect.value;
+                
+                if (!region) {
+                    regionInfo.innerHTML = '<div class="highlight">Регион не найден</div>';
+                    return;
+                }
+                
+                currentSelectedRegionId = regionId;
+                currentViewMode = 'region';
+                
+                let html = `<div class="highlight">${region.name}</div>`;
+                
+                if (region.morbidity) {
+                    if (region.morbidity[selectedYear]) {
+                        const data = region.morbidity[selectedYear].congenital_anomalies;
+                        html += `
+                            <div><strong>Данные за ${selectedYear} год:</strong></div>
+                            <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
+                            <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
+                        `;
+                    } else {
+                        // Ищем ближайший год с данными
+                        const years = Object.keys(region.morbidity).sort().reverse();
+                        if (years.length > 0) {
+                            const latestYear = years[0];
+                            const data = region.morbidity[latestYear].congenital_anomalies;
+                            html += `
+                                <div><strong>Данные за ${latestYear} год (${selectedYear} недоступен):</strong></div>
+                                <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
+                                <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
+                            `;
+                        } else {
+                            html += '<div>Данные о заболеваемости отсутствуют</div>';
+                        }
+                    }
+                    
+                    // Таблица с данными по годам
+                    html += '<table class="data-table">';
+                    html += '<tr><th>Год</th><th>Абс. число</th><th>На 100 000</th></tr>';
+                    
+                    const years = Object.keys(region.morbidity).sort().reverse();
+                    years.forEach(year => {
+                        const data = region.morbidity[year].congenital_anomalies;
+                        html += `
+                            <tr>
+                                <td>${year}</td>
+                                <td>${data.absolute_numbers.toLocaleString()}</td>
+                                <td>${data.per_100000.toFixed(1)}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</table>';
+                } else {
+                    html += '<div>Данные о заболеваемости отсутствуют</div>';
+                }
+                
+                regionInfo.innerHTML = html;
+            }
+            
+            // Функция показа данных по всей России
+            function showRussiaData() {
+                const selectedYear = yearSelect.value;
+                const rfData = simplemaps_countrymap_mapdata.rf_data;
+                
+                currentSelectedRegionId = null;
+                currentViewMode = 'all';
+                
+                if (rfData && rfData.morbidity[selectedYear]) {
+                    const data = rfData.morbidity[selectedYear].congenital_anomalies;
+                    const births = rfData.births[selectedYear] || 'нет данных';
+                    
+                    let html = `<div class="highlight">Российская Федерация (все регионы)</div>`;
+                    html += `<div><strong>Данные за ${selectedYear} год:</strong></div>`;
+                    html += `<div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>`;
+                    html += `<div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>`;
+                    html += `<div>Количество рождений: ${births.toLocaleString()}</div>`;
+                    
+                    // Таблица с данными по годам
+                    html += '<table class="data-table">';
+                    html += '<tr><th>Год</th><th>Абс. число</th><th>На 100 000</th><th>Рождений</th></tr>';
+                    
+                    for (let year = 2024; year >= 2015; year--) {
+                        if (rfData.morbidity[year] && rfData.births[year]) {
+                            const morbidity = rfData.morbidity[year].congenital_anomalies;
+                            html += `
+                                <tr>
+                                    <td>${year}</td>
+                                    <td>${morbidity.absolute_numbers.toLocaleString()}</td>
+                                    <td>${morbidity.per_100000.toFixed(1)}</td>
+                                    <td>${rfData.births[year].toLocaleString()}</td>
+                                </tr>
+                            `;
+                        }
+                    }
+                    
+                    html += '</table>';
+                    regionInfo.innerHTML = html;
+                }
+            }
+            
+            // Функция показа данных федерального округа
+            function showDistrictData(districtId) {
+                const district = simplemaps_countrymap_mapdata.regions[districtId];
+                const selectedYear = yearSelect.value;
+                
+                currentSelectedRegionId = null;
+                currentViewMode = 'district';
+                currentDistrictId = districtId;
+                
+                if (!district) {
+                    regionInfo.innerHTML = '<div class="highlight">Федеральный округ не найден</div>';
+                    return;
+                }
+                
+                let html = `<div class="highlight">${district.name}</div>`;
+                
+                if (district.morbidity) {
+                    if (district.morbidity[selectedYear]) {
+                        const data = district.morbidity[selectedYear].congenital_anomalies;
+                        html += `
+                            <div><strong>Данные за ${selectedYear} год:</strong></div>
+                            <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
+                            <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
+                        `;
+                        
+                        // Добавляем информацию о рождениях, если есть
+                        if (district.births && district.births[selectedYear]) {
+                            html += `<div>Количество рождений: ${district.births[selectedYear].toLocaleString()}</div>`;
+                        }
+                    } else {
+                        // Ищем ближайший год с данными
+                        const years = Object.keys(district.morbidity).sort().reverse();
+                        if (years.length > 0) {
+                            const latestYear = years[0];
+                            const data = district.morbidity[latestYear].congenital_anomalies;
+                            html += `
+                                <div><strong>Данные за ${latestYear} год (${selectedYear} недоступен):</strong></div>
+                                <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
+                                <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
+                            `;
+                        } else {
+                            html += '<div>Данные о заболеваемости отсутствуют</div>';
+                        }
+                    }
+                    
+                    // Таблица с данными по годам
+                    html += '<table class="data-table">';
+                    html += '<tr><th>Год</th><th>Абс. число</th><th>На 100 000</th>';
+                    
+                    // Добавляем колонку для рождений, если есть данные
+                    if (district.births && Object.keys(district.births).length > 0) {
+                        html += '<th>Рождений</th>';
+                    }
+                    
+                    html += '</tr>';
+                    
+                    const years = Object.keys(district.morbidity).sort().reverse();
+                    years.forEach(year => {
+                        const data = district.morbidity[year].congenital_anomalies;
+                        html += `
+                            <tr>
+                                <td>${year}</td>
+                                <td>${data.absolute_numbers.toLocaleString()}</td>
+                                <td>${data.per_100000.toFixed(1)}</td>`;
+                        
+                        // Добавляем данные о рождениях, если есть
+                        if (district.births && district.births[year]) {
+                            html += `<td>${district.births[year].toLocaleString()}</td>`;
+                        } else if (district.births) {
+                            html += '<td>-</td>';
+                        }
+                        
+                        html += '</tr>';
+                    });
+                    
+                    html += '</table>';
+                } else {
+                    html += '<div>Данные о заболеваемости отсутствуют</div>';
+                }
+                
+                regionInfo.innerHTML = html;
+            }
+            
+            // Функция для настройки зума на выбранный федеральный округ
+            function zoomToDistrict(districtId) {
+                if (typeof simplemaps_countrymap !== 'undefined' && simplemaps_countrymap.zoomToRegion) {
+                    simplemaps_countrymap.zoomToRegion(districtId);
+                }
+            }
+            
+            // Инициализация карты
+            async function initMap() {
+                try {
+                    await loadMapScript();
+                    
+                    // Даем время на инициализацию карты
+                    setTimeout(() => {
+                        if (typeof simplemaps_countrymap !== 'undefined') {
+                            loading.style.display = 'none';
+                            
+                            // Инициализируем данные для текущего года
+                            const currentYear = yearSelect.value;
+                            updateRegionsForYear(currentYear);
+                            
+                            // Обновляем карту
+                            simplemaps_countrymap.refresh();
+                            
+                            // Добавляем обработчики кликов на регионы
+                            document.getElementById('map').addEventListener('click', function(e) {
+                                // Находим элемент региона
+                                let target = e.target;
+                                while (target && !target.getAttribute('data-id')) {
+                                    target = target.parentElement;
+                                }
+                                
+                                if (target && target.getAttribute('data-id')) {
+                                    const regionId = target.getAttribute('data-id');
+                                    showRegionData(regionId);
+                                }
+                            });
+                            
+                            // Устанавливаем начальный зум на СЗФО
+                            setTimeout(() => {
+                                zoomToDistrict('8'); // СЗФО имеет id '8'
+                            }, 500);
+                            
+                            // Показываем данные по СЗФО по умолчанию
+                            showDistrictData('8');
+                        } else {
+                            loading.innerHTML = 'Ошибка загрузки карты';
+                        }
+                    }, 1000);
+                } catch (error) {
+                    loading.innerHTML = 'Ошибка загрузки карты. Проверьте наличие countrymap.js';
+                    console.error(error);
+                }
+            }
+            
+            // Обработчик изменения года
+            yearSelect.addEventListener('change', function() {
+                mapTitle.textContent = `Заболеваемость на 100 000 населения (${this.value} год)`;
+                
+                // Обновляем данные для всех регионов для нового года
+                updateRegionsForYear(this.value);
+                
+                // Обновляем карту если она существует
+                if (typeof simplemaps_countrymap !== 'undefined' && simplemaps_countrymap.refresh) {
+                    simplemaps_countrymap.refresh();
+                }
+                
+                // Обновляем отображение данных в зависимости от того, что выбрано
+                if (currentViewMode === 'region' && currentSelectedRegionId) {
+                    showRegionData(currentSelectedRegionId);
+                } else if (currentViewMode === 'district' && currentDistrictId) {
+                    showDistrictData(currentDistrictId);
+                } else {
+                    showRussiaData();
+                }
+            });
+            
+            // Обработчик изменения федерального округа
+            districtSelect.addEventListener('change', function() {
+                if (this.value === 'all') {
+                    // Показываем всю Россию
+                    if (typeof simplemaps_countrymap !== 'undefined' && simplemaps_countrymap.zoomToCountry) {
+                        simplemaps_countrymap.zoomToCountry();
+                    }
+                    showRussiaData();
+                } else {
+                    // Показываем выбранный федеральный округ
+                    zoomToDistrict(this.value);
+                    showDistrictData(this.value);
+                }
+            });
+            
+            // Инициализируем карту
+            initMap();
+        });
+    </script>
+</body>
+</html>
