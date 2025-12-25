@@ -140,6 +140,10 @@
                     <option value="2021">2021</option>
                     <option value="2020">2020</option>
                     <option value="2019">2019</option>
+                    <option value="2018">2018</option>
+                    <option value="2017">2017</option>
+                    <option value="2016">2016</option>
+                    <option value="2015">2015</option>
                 </select>
             </div>
             <div id="map-title">Заболеваемость на 100 000 населения</div>
@@ -169,10 +173,75 @@
             let currentSelectedRegionId = null;
             let currentViewMode = 'district';
             
+            // Мультивыбор (Ctrl+клик)
+            const selectedRegions = new Set();
+            const originalBorders = {};
+            
             // Определяем регионы СЗФО
             const szfoRegions = [
                 'RUARK', 'RUNEN', 'RUKR', 'RULEN', 'RUMUR', 'RUNGR', 'RUPSK', 'RUSPE', 'RUVLG', 'RUKGD'
             ];
+
+            // Дополнительная детализация из Excel (встроено в HTML)
+            const EXCEL_EXTRA = {"states":{"RUKR":{"2015":{"congenital_anomalies":{"absolute_numbers":7365,"per_100000":7018.8},"congenital_circulatory":{"absolute_numbers":5107,"per_100000":4867.0},"congenital_nervous":{"absolute_numbers":193,"per_100000":183.9},"congenital_hip":{"absolute_numbers":531,"per_100000":506.0},"congenital_ichthyosis":{"absolute_numbers":9,"per_100000":8.58}},"2016":{"congenital_anomalies":{"absolute_numbers":6830,"per_100000":6359.4},"congenital_circulatory":{"absolute_numbers":4478,"per_100000":4169.5},"congenital_nervous":{"absolute_numbers":173,"per_100000":161.1},"congenital_hip":{"absolute_numbers":451,"per_100000":419.9},"congenital_ichthyosis":{"absolute_numbers":8,"per_100000":7.4}},"2017":{"congenital_anomalies":{"absolute_numbers":6812,"per_100000":6302.3},"congenital_circulatory":{"absolute_numbers":4624,"per_100000":4278.0},"congenital_nervous":{"absolute_numbers":124,"per_100000":114.7},"congenital_hip":{"absolute_numbers":379,"per_100000":350.6},"congenital_ichthyosis":{"absolute_numbers":7,"per_100000":6.5}},"2018":{"congenital_anomalies":{"absolute_numbers":6928,"per_100000":6433.2},"congenital_circulatory":{"absolute_numbers":4769,"per_100000":4428.4},"congenital_nervous":{"absolute_numbers":114,"per_100000":105.9},"congenital_hip":{"absolute_numbers":269,"per_100000":249.8},"congenital_ichthyosis":{"absolute_numbers":5,"per_100000":4.6}},"2019":{"congenital_anomalies":{"absolute_numbers":7927,"per_100000":7379.2},"congenital_circulatory":{"absolute_numbers":5703,"per_100000":5308.9},"congenital_nervous":{"absolute_numbers":99,"per_100000":92.2},"congenital_hip":{"absolute_numbers":329,"per_100000":306.3},"congenital_ichthyosis":{"absolute_numbers":8,"per_100000":7.4}},"2020":{"congenital_anomalies":{"absolute_numbers":7982,"per_100000":7568.4},"congenital_circulatory":{"absolute_numbers":6108,"per_100000":5791.5},"congenital_nervous":{"absolute_numbers":58,"per_100000":55.0},"congenital_hip":{"absolute_numbers":294,"per_100000":278.8},"congenital_ichthyosis":{"absolute_numbers":7,"per_100000":6.6}},"2021":{"congenital_anomalies":{"absolute_numbers":10166,"per_100000":9695.9},"congenital_circulatory":{"absolute_numbers":7398,"per_100000":7055.9},"congenital_nervous":{"absolute_numbers":82,"per_100000":78.2},"congenital_hip":{"absolute_numbers":310,"per_100000":295.7},"congenital_ichthyosis":{"absolute_numbers":6,"per_100000":5.7}},"2022":{"congenital_anomalies":{"absolute_numbers":10885,"per_100000":12654.2},"congenital_circulatory":{"absolute_numbers":7971,"per_100000":9266.6},"congenital_nervous":{"absolute_numbers":87,"per_100000":101.1},"congenital_hip":{"absolute_numbers":280,"per_100000":325.5},"congenital_ichthyosis":{"absolute_numbers":6,"per_100000":7.0}},"2023":{"congenital_anomalies":{"absolute_numbers":10636,"per_100000":12538.2},"congenital_circulatory":{"absolute_numbers":8434,"per_100000":9942.4},"congenital_nervous":{"absolute_numbers":71,"per_100000":83.7},"congenital_hip":{"absolute_numbers":279,"per_100000":328.9},"congenital_eye":{"absolute_numbers":146,"per_100000":173.8},"congenital_female_genital":{"absolute_numbers":7,"per_100000":17.0}},"2024":{"congenital_anomalies":{"absolute_numbers":16078,"per_100000":5132.9},"congenital_circulatory":{"absolute_numbers":13188,"per_100000":15860.9},"congenital_nervous":{"absolute_numbers":92,"per_100000":110.6},"congenital_hip":{"absolute_numbers":249,"per_100000":299.5},"congenital_ichthyosis":{"absolute_numbers":11,"per_100000":13.2},"congenital_female_genital":{"absolute_numbers":20,"per_100000":49.2},"congenital_eye":{"absolute_numbers":263,"per_100000":316.3}}},"RUARK":{"2015":{"congenital_anomalies":{"absolute_numbers":13280,"per_100000":6816.9},"congenital_circulatory":{"absolute_numbers":5764,"per_100000":2958.8},"congenital_nervous":{"absolute_numbers":333,"per_100000":170.9},"congenital_hip":{"absolute_numbers":2902,"per_100000":1489.6},"congenital_ichthyosis":{"absolute_numbers":23,"per_100000":11.81}},"2016":{"congenital_anomalies":{"absolute_numbers":15817,"per_100000":8009.4},"congenital_circulatory":{"absolute_numbers":7460,"per_100000":3777.6},"congenital_nervous":{"absolute_numbers":367,"per_100000":185.8},"congenital_hip":{"absolute_numbers":2928,"per_100000":1482.7},"congenital_ichthyosis":{"absolute_numbers":26,"per_100000":13.2}},"2017":{"congenital_anomalies":{"absolute_numbers":17385,"per_100000":8779.1},"congenital_circulatory":{"absolute_numbers":8543,"per_100000":4314.1},"congenital_nervous":{"absolute_numbers":395,"per_100000":199.5},"congenital_hip":{"absolute_numbers":3447,"per_100000":1740.7},"congenital_ichthyosis":{"absolute_numbers":26,"per_100000":13.1}},"2018":{"congenital_anomalies":{"absolute_numbers":16712,"per_100000":8554.9},"congenital_circulatory":{"absolute_numbers":8743,"per_100000":4475.5},"congenital_nervous":{"absolute_numbers":407,"per_100000":208.3},"congenital_hip":{"absolute_numbers":2591,"per_100000":1326.3},"congenital_ichthyosis":{"absolute_numbers":23,"per_100000":11.8}},"2019":{"congenital_anomalies":{"absolute_numbers":16049,"per_100000":8270.8},"congenital_circulatory":{"absolute_numbers":8548,"per_100000":4405.2},"congenital_nervous":{"absolute_numbers":412,"per_100000":212.3},"congenital_hip":{"absolute_numbers":1703,"per_100000":877.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.52},"congenital_ichthyosis":{"absolute_numbers":20,"per_100000":10.3}},"2020":{"congenital_anomalies":{"absolute_numbers":13651,"per_100000":7231.3},"congenital_circulatory":{"absolute_numbers":7506,"per_100000":3976.2},"congenital_nervous":{"absolute_numbers":415,"per_100000":219.8},"congenital_hip":{"absolute_numbers":960,"per_100000":508.5},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.53},"congenital_ichthyosis":{"absolute_numbers":16,"per_100000":8.5}},"2021":{"congenital_anomalies":{"absolute_numbers":13863,"per_100000":7415.1},"congenital_circulatory":{"absolute_numbers":7783,"per_100000":4163.0},"congenital_nervous":{"absolute_numbers":329,"per_100000":176.0},"congenital_hip":{"absolute_numbers":777,"per_100000":415.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.53},"congenital_ichthyosis":{"absolute_numbers":15,"per_100000":8.0}},"2022":{"congenital_anomalies":{"absolute_numbers":13746,"per_100000":8313.8},"congenital_circulatory":{"absolute_numbers":7021,"per_100000":4246.4},"congenital_nervous":{"absolute_numbers":375,"per_100000":226.8},"congenital_hip":{"absolute_numbers":1088,"per_100000":658.0},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.6},"congenital_ichthyosis":{"absolute_numbers":30,"per_100000":18.1}},"2023":{"congenital_anomalies":{"absolute_numbers":14555,"per_100000":9026.9},"congenital_circulatory":{"absolute_numbers":7368,"per_100000":4569.6},"congenital_nervous":{"absolute_numbers":386,"per_100000":239.4},"congenital_hip":{"absolute_numbers":1320,"per_100000":818.7},"congenital_ichthyosis":{"absolute_numbers":39,"per_100000":24.2},"congenital_eye":{"absolute_numbers":316,"per_100000":198.7},"congenital_female_genital":{"absolute_numbers":91,"per_100000":119.4}},"2024":{"congenital_anomalies":{"absolute_numbers":14625,"per_100000":9324.2},"congenital_circulatory":{"absolute_numbers":7427,"per_100000":4735.1},"congenital_nervous":{"absolute_numbers":376,"per_100000":239.7},"congenital_hip":{"absolute_numbers":1309,"per_100000":834.6},"congenital_ichthyosis":{"absolute_numbers":40,"per_100000":25.5},"congenital_female_genital":{"absolute_numbers":80,"per_100000":106.5},"congenital_eye":{"absolute_numbers":308,"per_100000":196.4}}},"RUNEN":{"2015":{"congenital_anomalies":{"absolute_numbers":848,"per_100000":8584.7},"congenital_circulatory":{"absolute_numbers":436,"per_100000":4413.8},"congenital_nervous":{"absolute_numbers":9,"per_100000":91.1},"congenital_hip":{"absolute_numbers":48,"per_100000":485.9},"congenital_ichthyosis":{"absolute_numbers":1,"per_100000":10.12}},"2016":{"congenital_anomalies":{"absolute_numbers":708,"per_100000":6969.2},"congenital_circulatory":{"absolute_numbers":245,"per_100000":2411.7},"congenital_nervous":{"absolute_numbers":9,"per_100000":88.6},"congenital_hip":{"absolute_numbers":45,"per_100000":443.0},"congenital_ichthyosis":{"absolute_numbers":2,"per_100000":19.7}},"2017":{"congenital_anomalies":{"absolute_numbers":463,"per_100000":4523.3},"congenital_circulatory":{"absolute_numbers":143,"per_100000":1397.0},"congenital_nervous":{"absolute_numbers":6,"per_100000":58.6},"congenital_hip":{"absolute_numbers":38,"per_100000":371.2}},"2018":{"congenital_anomalies":{"absolute_numbers":532,"per_100000":5189.7},"congenital_circulatory":{"absolute_numbers":208,"per_100000":2029.1},"congenital_nervous":{"absolute_numbers":3,"per_100000":29.3},"congenital_hip":{"absolute_numbers":44,"per_100000":429.2},"congenital_ichthyosis":{"absolute_numbers":1,"per_100000":9.8}},"2019":{"congenital_anomalies":{"absolute_numbers":401,"per_100000":3928.3},"congenital_circulatory":{"absolute_numbers":156,"per_100000":1528.2},"congenital_nervous":{"absolute_numbers":2,"per_100000":19.6},"congenital_hip":{"absolute_numbers":43,"per_100000":421.2},"congenital_ichthyosis":{"absolute_numbers":1,"per_100000":9.8}},"2020":{"congenital_anomalies":{"absolute_numbers":350,"per_100000":3424.2},"congenital_circulatory":{"absolute_numbers":99,"per_100000":968.5},"congenital_nervous":{"absolute_numbers":5,"per_100000":48.9},"congenital_hip":{"absolute_numbers":43,"per_100000":420.7}},"2021":{"congenital_anomalies":{"absolute_numbers":361,"per_100000":3528.1},"congenital_circulatory":{"absolute_numbers":155,"per_100000":1514.9},"congenital_nervous":{"absolute_numbers":1,"per_100000":9.8},"congenital_hip":{"absolute_numbers":24,"per_100000":234.6}},"2022":{"congenital_anomalies":{"absolute_numbers":325,"per_100000":3691.1},"congenital_circulatory":{"absolute_numbers":150,"per_100000":1703.6},"congenital_nervous":{"absolute_numbers":1,"per_100000":11.4},"congenital_hip":{"absolute_numbers":37,"per_100000":420.2}},"2023":{"congenital_anomalies":{"absolute_numbers":319,"per_100000":3663.7},"congenital_circulatory":{"absolute_numbers":135,"per_100000":1550.5},"congenital_nervous":{"absolute_numbers":3,"per_100000":34.5},"congenital_hip":{"absolute_numbers":22,"per_100000":252.7},"congenital_eye":{"absolute_numbers":1,"per_100000":11.5}},"2024":{"congenital_anomalies":{"absolute_numbers":301,"per_100000":3470.1},"congenital_circulatory":{"absolute_numbers":113,"per_100000":1302.7},"congenital_nervous":{"absolute_numbers":8,"per_100000":92.2},"congenital_hip":{"absolute_numbers":17,"per_100000":196.0},"congenital_ichthyosis":{"absolute_numbers":1,"per_100000":11.5},"congenital_female_genital":{"absolute_numbers":5,"per_100000":118.9},"congenital_eye":{"absolute_numbers":5,"per_100000":57.6}}},"RUVLG":{"2015":{"congenital_anomalies":{"absolute_numbers":6098,"per_100000":2962.6},"congenital_circulatory":{"absolute_numbers":2837,"per_100000":1378.3},"congenital_nervous":{"absolute_numbers":212,"per_100000":103.0},"congenital_hip":{"absolute_numbers":342,"per_100000":166.2},"sex_ambiguity":{"absolute_numbers":5,"per_100000":2.43},"congenital_ichthyosis":{"absolute_numbers":15,"per_100000":7.29}},"2016":{"congenital_anomalies":{"absolute_numbers":6928,"per_100000":3254.3},"congenital_circulatory":{"absolute_numbers":3107,"per_100000":1459.5},"congenital_nervous":{"absolute_numbers":229,"per_100000":107.6},"congenital_hip":{"absolute_numbers":332,"per_100000":156.0},"sex_ambiguity":{"absolute_numbers":5,"per_100000":2.35},"congenital_ichthyosis":{"absolute_numbers":25,"per_100000":11.7}},"2017":{"congenital_anomalies":{"absolute_numbers":6435,"per_100000":2994.9},"congenital_circulatory":{"absolute_numbers":3081,"per_100000":1433.9},"congenital_nervous":{"absolute_numbers":222,"per_100000":103.3},"congenital_hip":{"absolute_numbers":396,"per_100000":184.3},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.93},"congenital_ichthyosis":{"absolute_numbers":21,"per_100000":9.8}},"2018":{"congenital_anomalies":{"absolute_numbers":6609,"per_100000":3071.6},"congenital_circulatory":{"absolute_numbers":3166,"per_100000":1471.4},"congenital_nervous":{"absolute_numbers":225,"per_100000":104.6},"congenital_hip":{"absolute_numbers":350,"per_100000":162.7},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.46},"congenital_ichthyosis":{"absolute_numbers":19,"per_100000":8.8}},"2019":{"congenital_anomalies":{"absolute_numbers":6711,"per_100000":3124.9},"congenital_circulatory":{"absolute_numbers":3275,"per_100000":1525.0},"congenital_nervous":{"absolute_numbers":233,"per_100000":108.5},"congenital_hip":{"absolute_numbers":343,"per_100000":159.7},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.47},"congenital_ichthyosis":{"absolute_numbers":21,"per_100000":9.8}},"2020":{"congenital_anomalies":{"absolute_numbers":6988,"per_100000":3300.9},"congenital_circulatory":{"absolute_numbers":3558,"per_100000":1680.7},"congenital_nervous":{"absolute_numbers":203,"per_100000":95.9},"congenital_hip":{"absolute_numbers":322,"per_100000":152.1},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.94},"congenital_ichthyosis":{"absolute_numbers":17,"per_100000":8.0}},"2021":{"congenital_anomalies":{"absolute_numbers":7527,"per_100000":3573.1},"congenital_circulatory":{"absolute_numbers":3834,"per_100000":1820.0},"congenital_nervous":{"absolute_numbers":198,"per_100000":94.0},"congenital_hip":{"absolute_numbers":303,"per_100000":143.8},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.47},"congenital_ichthyosis":{"absolute_numbers":17,"per_100000":8.1}},"2022":{"congenital_anomalies":{"absolute_numbers":8133,"per_100000":3909.1},"congenital_circulatory":{"absolute_numbers":4179,"per_100000":2008.6},"congenital_nervous":{"absolute_numbers":211,"per_100000":101.4},"congenital_hip":{"absolute_numbers":369,"per_100000":177.4},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.48},"congenital_ichthyosis":{"absolute_numbers":11,"per_100000":5.3}},"2023":{"congenital_anomalies":{"absolute_numbers":8821,"per_100000":4337.5},"congenital_circulatory":{"absolute_numbers":4649,"per_100000":2286.0},"congenital_nervous":{"absolute_numbers":216,"per_100000":106.2},"congenital_hip":{"absolute_numbers":373,"per_100000":183.4},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.49},"congenital_ichthyosis":{"absolute_numbers":28,"per_100000":13.8},"congenital_eye":{"absolute_numbers":249,"per_100000":124.1},"congenital_female_genital":{"absolute_numbers":72,"per_100000":73.5}},"2024":{"congenital_anomalies":{"absolute_numbers":9942,"per_100000":5023.1},"congenital_circulatory":{"absolute_numbers":5443,"per_100000":2750.0},"congenital_nervous":{"absolute_numbers":199,"per_100000":100.5},"congenital_hip":{"absolute_numbers":339,"per_100000":171.3},"congenital_ichthyosis":{"absolute_numbers":25,"per_100000":12.6},"congenital_female_genital":{"absolute_numbers":74,"per_100000":76.6},"congenital_eye":{"absolute_numbers":256,"per_100000":129.3}}},"RUKGD":{"2015":{"congenital_anomalies":{"absolute_numbers":7116,"per_100000":4622.1},"congenital_circulatory":{"absolute_numbers":2801,"per_100000":1819.4},"congenital_nervous":{"absolute_numbers":124,"per_100000":80.5},"congenital_hip":{"absolute_numbers":1519,"per_100000":986.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.65},"congenital_ichthyosis":{"absolute_numbers":31,"per_100000":20.14}},"2016":{"congenital_anomalies":{"absolute_numbers":9285,"per_100000":5773.7},"congenital_circulatory":{"absolute_numbers":3974,"per_100000":2471.1},"congenital_nervous":{"absolute_numbers":133,"per_100000":82.7},"congenital_hip":{"absolute_numbers":1872,"per_100000":1164.1},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.62},"congenital_ichthyosis":{"absolute_numbers":25,"per_100000":15.5}},"2017":{"congenital_anomalies":{"absolute_numbers":8721,"per_100000":5343.2},"congenital_circulatory":{"absolute_numbers":2399,"per_100000":1469.8},"congenital_nervous":{"absolute_numbers":147,"per_100000":90.1},"congenital_hip":{"absolute_numbers":1558,"per_100000":954.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.61},"congenital_ichthyosis":{"absolute_numbers":15,"per_100000":9.2}},"2018":{"congenital_anomalies":{"absolute_numbers":6855,"per_100000":4093.7},"congenital_circulatory":{"absolute_numbers":2107,"per_100000":1258.3},"congenital_nervous":{"absolute_numbers":131,"per_100000":78.2},"congenital_hip":{"absolute_numbers":1186,"per_100000":708.3},"sex_ambiguity":{"absolute_numbers":2,"per_100000":1.19},"congenital_ichthyosis":{"absolute_numbers":16,"per_100000":9.6}},"2019":{"congenital_anomalies":{"absolute_numbers":7208,"per_100000":4273.7},"congenital_circulatory":{"absolute_numbers":1898,"per_100000":1125.3},"congenital_nervous":{"absolute_numbers":118,"per_100000":70.0},"congenital_hip":{"absolute_numbers":1064,"per_100000":630.9},"sex_ambiguity":{"absolute_numbers":3,"per_100000":1.78},"congenital_ichthyosis":{"absolute_numbers":18,"per_100000":10.7}},"2020":{"congenital_anomalies":{"absolute_numbers":6933,"per_100000":4066.0},"congenital_circulatory":{"absolute_numbers":2406,"per_100000":1411.0},"congenital_nervous":{"absolute_numbers":129,"per_100000":75.7},"congenital_hip":{"absolute_numbers":1131,"per_100000":663.3},"sex_ambiguity":{"absolute_numbers":2,"per_100000":1.17},"congenital_ichthyosis":{"absolute_numbers":9,"per_100000":5.3}},"2021":{"congenital_anomalies":{"absolute_numbers":6670,"per_100000":3900.1},"congenital_circulatory":{"absolute_numbers":2604,"per_100000":1522.6},"congenital_nervous":{"absolute_numbers":115,"per_100000":67.2},"congenital_hip":{"absolute_numbers":1031,"per_100000":602.8},"sex_ambiguity":{"absolute_numbers":2,"per_100000":1.17},"congenital_ichthyosis":{"absolute_numbers":9,"per_100000":5.3}},"2022":{"congenital_anomalies":{"absolute_numbers":6094,"per_100000":3510.0},"congenital_circulatory":{"absolute_numbers":2460,"per_100000":1416.9},"congenital_nervous":{"absolute_numbers":119,"per_100000":68.5},"congenital_hip":{"absolute_numbers":1004,"per_100000":578.3},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.58},"congenital_ichthyosis":{"absolute_numbers":21,"per_100000":12.1}},"2023":{"congenital_anomalies":{"absolute_numbers":6533,"per_100000":3804.5},"congenital_circulatory":{"absolute_numbers":2438,"per_100000":1419.8},"congenital_nervous":{"absolute_numbers":126,"per_100000":73.4},"congenital_hip":{"absolute_numbers":807,"per_100000":470.0},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.58},"congenital_ichthyosis":{"absolute_numbers":10,"per_100000":5.8},"congenital_eye":{"absolute_numbers":219,"per_100000":128.8},"congenital_female_genital":{"absolute_numbers":8,"per_100000":9.7}},"2024":{"congenital_anomalies":{"absolute_numbers":6333,"per_100000":3763.2},"congenital_circulatory":{"absolute_numbers":2125,"per_100000":1262.7},"congenital_nervous":{"absolute_numbers":111,"per_100000":66.0},"congenital_hip":{"absolute_numbers":785,"per_100000":466.5},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.59},"congenital_ichthyosis":{"absolute_numbers":10,"per_100000":5.9},"congenital_female_genital":{"absolute_numbers":12,"per_100000":14.7},"congenital_eye":{"absolute_numbers":160,"per_100000":95.1}}},"RULEN":{"2015":{"congenital_anomalies":{"absolute_numbers":4893,"per_100000":2024.3},"congenital_circulatory":{"absolute_numbers":1933,"per_100000":799.7},"congenital_nervous":{"absolute_numbers":278,"per_100000":115.0},"congenital_hip":{"absolute_numbers":278,"per_100000":115.0},"sex_ambiguity":{"absolute_numbers":3,"per_100000":1.24},"congenital_ichthyosis":{"absolute_numbers":32,"per_100000":13.24}},"2016":{"congenital_anomalies":{"absolute_numbers":5671,"per_100000":2252.6},"congenital_circulatory":{"absolute_numbers":2523,"per_100000":1002.2},"congenital_nervous":{"absolute_numbers":364,"per_100000":144.6},"congenital_hip":{"absolute_numbers":415,"per_100000":164.8},"sex_ambiguity":{"absolute_numbers":5,"per_100000":1.99},"congenital_ichthyosis":{"absolute_numbers":26,"per_100000":10.3}},"2017":{"congenital_anomalies":{"absolute_numbers":5777,"per_100000":2264.3},"congenital_circulatory":{"absolute_numbers":2247,"per_100000":880.7},"congenital_nervous":{"absolute_numbers":302,"per_100000":118.4},"congenital_hip":{"absolute_numbers":698,"per_100000":273.6},"sex_ambiguity":{"absolute_numbers":3,"per_100000":1.18},"congenital_ichthyosis":{"absolute_numbers":21,"per_100000":8.2}},"2018":{"congenital_anomalies":{"absolute_numbers":5775,"per_100000":2170.4},"congenital_circulatory":{"absolute_numbers":2313,"per_100000":869.3},"congenital_nervous":{"absolute_numbers":267,"per_100000":100.3},"congenital_hip":{"absolute_numbers":605,"per_100000":227.4},"sex_ambiguity":{"absolute_numbers":4,"per_100000":1.5},"congenital_ichthyosis":{"absolute_numbers":20,"per_100000":7.5}},"2019":{"congenital_anomalies":{"absolute_numbers":5142,"per_100000":1903.1},"congenital_circulatory":{"absolute_numbers":2168,"per_100000":802.4},"congenital_nervous":{"absolute_numbers":254,"per_100000":94.0},"congenital_hip":{"absolute_numbers":308,"per_100000":114.0},"sex_ambiguity":{"absolute_numbers":3,"per_100000":1.11},"congenital_ichthyosis":{"absolute_numbers":19,"per_100000":7.0}},"2020":{"congenital_anomalies":{"absolute_numbers":5436,"per_100000":1969.1},"congenital_circulatory":{"absolute_numbers":2253,"per_100000":816.1},"congenital_nervous":{"absolute_numbers":258,"per_100000":93.5},"congenital_hip":{"absolute_numbers":309,"per_100000":111.9},"congenital_ichthyosis":{"absolute_numbers":19,"per_100000":6.9}},"2021":{"congenital_anomalies":{"absolute_numbers":5692,"per_100000":2049.2},"congenital_circulatory":{"absolute_numbers":2515,"per_100000":905.4},"congenital_nervous":{"absolute_numbers":279,"per_100000":100.4},"congenital_hip":{"absolute_numbers":368,"per_100000":132.5},"congenital_ichthyosis":{"absolute_numbers":17,"per_100000":8.1}},"2022":{"congenital_anomalies":{"absolute_numbers":6237,"per_100000":2362.6},"congenital_circulatory":{"absolute_numbers":2774,"per_100000":1050.8},"congenital_nervous":{"absolute_numbers":258,"per_100000":97.7},"congenital_hip":{"absolute_numbers":309,"per_100000":117.0},"congenital_ichthyosis":{"absolute_numbers":20,"per_100000":7.6}},"2023":{"congenital_anomalies":{"absolute_numbers":8732,"per_100000":3256.5},"congenital_circulatory":{"absolute_numbers":4555,"per_100000":1698.7},"congenital_nervous":{"absolute_numbers":222,"per_100000":82.8},"congenital_hip":{"absolute_numbers":427,"per_100000":159.2},"congenital_ichthyosis":{"absolute_numbers":19,"per_100000":7.1},"congenital_eye":{"absolute_numbers":183,"per_100000":68.3},"congenital_female_genital":{"absolute_numbers":109,"per_100000":83.6}},"2024":{"congenital_anomalies":{"absolute_numbers":10084,"per_100000":3762.2},"congenital_circulatory":{"absolute_numbers":4547,"per_100000":1696.4},"congenital_nervous":{"absolute_numbers":227,"per_100000":84.7},"congenital_hip":{"absolute_numbers":294,"per_100000":109.7},"congenital_ichthyosis":{"absolute_numbers":17,"per_100000":6.3},"congenital_female_genital":{"absolute_numbers":120,"per_100000":92.0},"congenital_eye":{"absolute_numbers":216,"per_100000":80.6}}},"RUMUR":{"2015":{"congenital_anomalies":{"absolute_numbers":3290,"per_100000":2554.3},"congenital_circulatory":{"absolute_numbers":1232,"per_100000":956.5},"congenital_nervous":{"absolute_numbers":108,"per_100000":83.9},"congenital_hip":{"absolute_numbers":227,"per_100000":176.2},"congenital_ichthyosis":{"absolute_numbers":8,"per_100000":6.21}},"2016":{"congenital_anomalies":{"absolute_numbers":3292,"per_100000":2496.2},"congenital_circulatory":{"absolute_numbers":1148,"per_100000":870.5},"congenital_nervous":{"absolute_numbers":107,"per_100000":81.1},"congenital_hip":{"absolute_numbers":231,"per_100000":175.2},"congenital_ichthyosis":{"absolute_numbers":6,"per_100000":4.5}},"2017":{"congenital_anomalies":{"absolute_numbers":3595,"per_100000":2710.7},"congenital_circulatory":{"absolute_numbers":1162,"per_100000":876.2},"congenital_nervous":{"absolute_numbers":102,"per_100000":76.9},"congenital_hip":{"absolute_numbers":210,"per_100000":158.3},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.75},"congenital_ichthyosis":{"absolute_numbers":10,"per_100000":7.5}},"2018":{"congenital_anomalies":{"absolute_numbers":3289,"per_100000":2479.8},"congenital_circulatory":{"absolute_numbers":1111,"per_100000":837.7},"congenital_nervous":{"absolute_numbers":92,"per_100000":69.4},"congenital_hip":{"absolute_numbers":172,"per_100000":129.7},"congenital_ichthyosis":{"absolute_numbers":7,"per_100000":5.3}},"2019":{"congenital_anomalies":{"absolute_numbers":3031,"per_100000":2289.7},"congenital_circulatory":{"absolute_numbers":1119,"per_100000":845.3},"congenital_nervous":{"absolute_numbers":85,"per_100000":64.2},"congenital_hip":{"absolute_numbers":132,"per_100000":99.7},"congenital_ichthyosis":{"absolute_numbers":5,"per_100000":3.8}},"2020":{"congenital_anomalies":{"absolute_numbers":2825,"per_100000":2183.6},"congenital_circulatory":{"absolute_numbers":1046,"per_100000":808.5},"congenital_nervous":{"absolute_numbers":66,"per_100000":51.0},"congenital_hip":{"absolute_numbers":116,"per_100000":89.7},"congenital_ichthyosis":{"absolute_numbers":4,"per_100000":3.1}},"2021":{"congenital_anomalies":{"absolute_numbers":3008,"per_100000":2343.9},"congenital_circulatory":{"absolute_numbers":1158,"per_100000":902.3},"congenital_nervous":{"absolute_numbers":82,"per_100000":63.9},"congenital_hip":{"absolute_numbers":110,"per_100000":85.7},"sex_ambiguity":{"absolute_numbers":2,"per_100000":1.56},"congenital_ichthyosis":{"absolute_numbers":5,"per_100000":3.9}},"2022":{"congenital_anomalies":{"absolute_numbers":3025,"per_100000":2513.1},"congenital_circulatory":{"absolute_numbers":1126,"per_100000":935.5},"congenital_nervous":{"absolute_numbers":82,"per_100000":68.1},"congenital_hip":{"absolute_numbers":134,"per_100000":111.3},"sex_ambiguity":{"absolute_numbers":3,"per_100000":2.49},"congenital_ichthyosis":{"absolute_numbers":4,"per_100000":3.3}},"2023":{"congenital_anomalies":{"absolute_numbers":3263,"per_100000":2769.8},"congenital_circulatory":{"absolute_numbers":1223,"per_100000":1038.2},"congenital_nervous":{"absolute_numbers":76,"per_100000":64.5},"congenital_hip":{"absolute_numbers":124,"per_100000":105.3},"sex_ambiguity":{"absolute_numbers":2,"per_100000":1.7},"congenital_ichthyosis":{"absolute_numbers":5,"per_100000":4.2},"congenital_eye":{"absolute_numbers":83,"per_100000":71.3},"congenital_female_genital":{"absolute_numbers":9,"per_100000":15.9}},"2024":{"congenital_anomalies":{"absolute_numbers":3054,"per_100000":2654.9},"congenital_circulatory":{"absolute_numbers":1134,"per_100000":985.8},"congenital_nervous":{"absolute_numbers":81,"per_100000":70.4},"congenital_hip":{"absolute_numbers":125,"per_100000":108.7},"sex_ambiguity":{"absolute_numbers":2,"per_100000":1.74},"congenital_ichthyosis":{"absolute_numbers":7,"per_100000":6.1},"congenital_female_genital":{"absolute_numbers":16,"per_100000":28.7},"congenital_eye":{"absolute_numbers":89,"per_100000":77.4}}},"RUNGR":{"2015":{"congenital_anomalies":{"absolute_numbers":4703,"per_100000":4837.2},"congenital_circulatory":{"absolute_numbers":2672,"per_100000":2748.3},"congenital_nervous":{"absolute_numbers":133,"per_100000":136.8},"congenital_hip":{"absolute_numbers":93,"per_100000":95.7},"sex_ambiguity":{"absolute_numbers":2,"per_100000":2.06},"congenital_ichthyosis":{"absolute_numbers":3,"per_100000":3.09}},"2016":{"congenital_anomalies":{"absolute_numbers":4852,"per_100000":4828.3},"congenital_circulatory":{"absolute_numbers":2578,"per_100000":2565.4},"congenital_nervous":{"absolute_numbers":159,"per_100000":158.2},"congenital_hip":{"absolute_numbers":158,"per_100000":157.2},"sex_ambiguity":{"absolute_numbers":3,"per_100000":2.99},"congenital_ichthyosis":{"absolute_numbers":3,"per_100000":3.0}},"2017":{"congenital_anomalies":{"absolute_numbers":4063,"per_100000":4007.8},"congenital_circulatory":{"absolute_numbers":2643,"per_100000":2607.1},"congenital_nervous":{"absolute_numbers":154,"per_100000":151.9},"congenital_hip":{"absolute_numbers":126,"per_100000":124.3},"sex_ambiguity":{"absolute_numbers":3,"per_100000":2.96}},"2018":{"congenital_anomalies":{"absolute_numbers":4328,"per_100000":4281.1},"congenital_circulatory":{"absolute_numbers":2947,"per_100000":2915.1},"congenital_nervous":{"absolute_numbers":191,"per_100000":188.9},"congenital_hip":{"absolute_numbers":127,"per_100000":125.6},"sex_ambiguity":{"absolute_numbers":3,"per_100000":2.97},"congenital_ichthyosis":{"absolute_numbers":3,"per_100000":3.0}},"2019":{"congenital_anomalies":{"absolute_numbers":4217,"per_100000":4183.1},"congenital_circulatory":{"absolute_numbers":2579,"per_100000":2558.3},"congenital_nervous":{"absolute_numbers":174,"per_100000":172.6},"congenital_hip":{"absolute_numbers":80,"per_100000":79.4},"sex_ambiguity":{"absolute_numbers":1,"per_100000":0.99},"congenital_ichthyosis":{"absolute_numbers":6,"per_100000":6.0}},"2020":{"congenital_anomalies":{"absolute_numbers":3893,"per_100000":3918.1},"congenital_circulatory":{"absolute_numbers":2862,"per_100000":2880.5},"congenital_nervous":{"absolute_numbers":159,"per_100000":160.0},"congenital_hip":{"absolute_numbers":66,"per_100000":66.4},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.01},"congenital_ichthyosis":{"absolute_numbers":7,"per_100000":7.0}},"2021":{"congenital_anomalies":{"absolute_numbers":4648,"per_100000":4701.6},"congenital_circulatory":{"absolute_numbers":3653,"per_100000":3695.1},"congenital_nervous":{"absolute_numbers":97,"per_100000":98.1},"congenital_hip":{"absolute_numbers":51,"per_100000":51.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.01},"congenital_ichthyosis":{"absolute_numbers":13,"per_100000":13.1}},"2022":{"congenital_anomalies":{"absolute_numbers":4360,"per_100000":4459.9},"congenital_circulatory":{"absolute_numbers":2957,"per_100000":3024.8},"congenital_nervous":{"absolute_numbers":130,"per_100000":133.0},"congenital_hip":{"absolute_numbers":58,"per_100000":59.3},"congenital_ichthyosis":{"absolute_numbers":11,"per_100000":11.3}},"2023":{"congenital_anomalies":{"absolute_numbers":4642,"per_100000":4869.0},"congenital_circulatory":{"absolute_numbers":3565,"per_100000":3739.3},"congenital_nervous":{"absolute_numbers":122,"per_100000":128.0},"congenital_hip":{"absolute_numbers":37,"per_100000":38.8},"congenital_ichthyosis":{"absolute_numbers":8,"per_100000":8.4},"congenital_eye":{"absolute_numbers":198,"per_100000":210.7},"congenital_female_genital":{"absolute_numbers":7,"per_100000":15.4}},"2024":{"congenital_anomalies":{"absolute_numbers":4230,"per_100000":4566.1},"congenital_circulatory":{"absolute_numbers":3073,"per_100000":3317.2},"congenital_nervous":{"absolute_numbers":118,"per_100000":127.4},"congenital_hip":{"absolute_numbers":47,"per_100000":50.7},"congenital_ichthyosis":{"absolute_numbers":10,"per_100000":10.8},"congenital_female_genital":{"absolute_numbers":13,"per_100000":29.1},"congenital_eye":{"absolute_numbers":86,"per_100000":92.8}}},"RUPSK":{"2015":{"congenital_anomalies":{"absolute_numbers":2439,"per_100000":2518.7},"congenital_circulatory":{"absolute_numbers":1619,"per_100000":1671.9},"congenital_nervous":{"absolute_numbers":113,"per_100000":116.7},"congenital_hip":{"absolute_numbers":64,"per_100000":66.1},"congenital_ichthyosis":{"absolute_numbers":4,"per_100000":4.13}},"2016":{"congenital_anomalies":{"absolute_numbers":2738,"per_100000":2763.6},"congenital_circulatory":{"absolute_numbers":1954,"per_100000":1972.3},"congenital_nervous":{"absolute_numbers":60,"per_100000":60.6},"congenital_hip":{"absolute_numbers":60,"per_100000":60.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.01},"congenital_ichthyosis":{"absolute_numbers":5,"per_100000":5.0}},"2017":{"congenital_anomalies":{"absolute_numbers":2672,"per_100000":2679.7},"congenital_circulatory":{"absolute_numbers":1910,"per_100000":1915.5},"congenital_nervous":{"absolute_numbers":61,"per_100000":61.2},"congenital_hip":{"absolute_numbers":15,"per_100000":15.0},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.0},"congenital_ichthyosis":{"absolute_numbers":4,"per_100000":4.0}},"2018":{"congenital_anomalies":{"absolute_numbers":2724,"per_100000":2744.2},"congenital_circulatory":{"absolute_numbers":1939,"per_100000":1953.4},"congenital_nervous":{"absolute_numbers":62,"per_100000":62.5},"congenital_hip":{"absolute_numbers":34,"per_100000":34.3},"congenital_ichthyosis":{"absolute_numbers":4,"per_100000":4.0}},"2019":{"congenital_anomalies":{"absolute_numbers":2832,"per_100000":2862.1},"congenital_circulatory":{"absolute_numbers":2061,"per_100000":2082.9},"congenital_nervous":{"absolute_numbers":43,"per_100000":43.5},"congenital_hip":{"absolute_numbers":40,"per_100000":40.4},"congenital_ichthyosis":{"absolute_numbers":8,"per_100000":8.1}},"2020":{"congenital_anomalies":{"absolute_numbers":2337,"per_100000":2390.6},"congenital_circulatory":{"absolute_numbers":1643,"per_100000":1680.7},"congenital_nervous":{"absolute_numbers":47,"per_100000":48.1},"congenital_hip":{"absolute_numbers":58,"per_100000":59.3},"congenital_ichthyosis":{"absolute_numbers":8,"per_100000":8.2}},"2021":{"congenital_anomalies":{"absolute_numbers":2353,"per_100000":2417.5},"congenital_circulatory":{"absolute_numbers":1592,"per_100000":1635.6},"congenital_nervous":{"absolute_numbers":51,"per_100000":52.4},"congenital_hip":{"absolute_numbers":48,"per_100000":49.3},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.03},"congenital_ichthyosis":{"absolute_numbers":7,"per_100000":7.2}},"2022":{"congenital_anomalies":{"absolute_numbers":2329,"per_100000":2519.0},"congenital_circulatory":{"absolute_numbers":1309,"per_100000":1415.8},"congenital_nervous":{"absolute_numbers":48,"per_100000":51.9},"congenital_hip":{"absolute_numbers":33,"per_100000":35.7},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.08},"congenital_ichthyosis":{"absolute_numbers":9,"per_100000":9.7}},"2023":{"congenital_anomalies":{"absolute_numbers":2134,"per_100000":2361.6},"congenital_circulatory":{"absolute_numbers":999,"per_100000":1105.5},"congenital_nervous":{"absolute_numbers":50,"per_100000":55.3},"congenital_hip":{"absolute_numbers":28,"per_100000":31.0},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.11},"congenital_ichthyosis":{"absolute_numbers":9,"per_100000":10.0},"congenital_eye":{"absolute_numbers":161,"per_100000":180.4},"congenital_female_genital":{"absolute_numbers":5,"per_100000":11.5}},"2024":{"congenital_anomalies":{"absolute_numbers":2551,"per_100000":2893.0},"congenital_circulatory":{"absolute_numbers":1279,"per_100000":1450.5},"congenital_nervous":{"absolute_numbers":54,"per_100000":61.2},"congenital_hip":{"absolute_numbers":12,"per_100000":13.6},"sex_ambiguity":{"absolute_numbers":1,"per_100000":1.13},"congenital_ichthyosis":{"absolute_numbers":9,"per_100000":10.2},"congenital_female_genital":{"absolute_numbers":8,"per_100000":18.7},"congenital_eye":{"absolute_numbers":157,"per_100000":178.1}}},"RUSPE":{"2015":{"congenital_anomalies":{"absolute_numbers":35748,"per_100000":5265.0},"congenital_circulatory":{"absolute_numbers":11958,"per_100000":1761.2},"congenital_nervous":{"absolute_numbers":717,"per_100000":105.6},"congenital_hip":{"absolute_numbers":3604,"per_100000":530.8},"sex_ambiguity":{"absolute_numbers":4,"per_100000":0.59},"congenital_ichthyosis":{"absolute_numbers":76,"per_100000":11.19}},"2016":{"congenital_anomalies":{"absolute_numbers":36087,"per_100000":4907.7},"congenital_circulatory":{"absolute_numbers":13465,"per_100000":1831.2},"congenital_nervous":{"absolute_numbers":723,"per_100000":98.3},"congenital_hip":{"absolute_numbers":3275,"per_100000":445.4},"sex_ambiguity":{"absolute_numbers":8,"per_100000":1.09},"congenital_ichthyosis":{"absolute_numbers":73,"per_100000":9.9}},"2017":{"congenital_anomalies":{"absolute_numbers":35771,"per_100000":4739.7},"congenital_circulatory":{"absolute_numbers":14340,"per_100000":1900.1},"congenital_nervous":{"absolute_numbers":770,"per_100000":102.0},"congenital_hip":{"absolute_numbers":3014,"per_100000":399.4},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.27},"congenital_ichthyosis":{"absolute_numbers":60,"per_100000":8.0}},"2018":{"congenital_anomalies":{"absolute_numbers":39886,"per_100000":5017.5},"congenital_circulatory":{"absolute_numbers":17820,"per_100000":2241.7},"congenital_nervous":{"absolute_numbers":680,"per_100000":85.5},"congenital_hip":{"absolute_numbers":2828,"per_100000":355.8},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.25},"congenital_ichthyosis":{"absolute_numbers":50,"per_100000":6.3}},"2019":{"congenital_anomalies":{"absolute_numbers":41825,"per_100000":5194.2},"congenital_circulatory":{"absolute_numbers":18784,"per_100000":2332.8},"congenital_nervous":{"absolute_numbers":588,"per_100000":73.0},"congenital_hip":{"absolute_numbers":3157,"per_100000":392.1},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.25},"congenital_ichthyosis":{"absolute_numbers":46,"per_100000":5.7}},"2020":{"congenital_anomalies":{"absolute_numbers":38301,"per_100000":4604.1},"congenital_circulatory":{"absolute_numbers":18013,"per_100000":2165.3},"congenital_nervous":{"absolute_numbers":591,"per_100000":71.0},"congenital_hip":{"absolute_numbers":3032,"per_100000":364.5},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.24},"congenital_ichthyosis":{"absolute_numbers":59,"per_100000":7.1}},"2021":{"congenital_anomalies":{"absolute_numbers":43645,"per_100000":5200.0},"congenital_circulatory":{"absolute_numbers":18803,"per_100000":2240.3},"congenital_nervous":{"absolute_numbers":559,"per_100000":66.6},"congenital_hip":{"absolute_numbers":3203,"per_100000":381.6},"sex_ambiguity":{"absolute_numbers":2,"per_100000":0.24},"congenital_ichthyosis":{"absolute_numbers":67,"per_100000":8.0}},"2022":{"congenital_anomalies":{"absolute_numbers":41984,"per_100000":5267.6},"congenital_circulatory":{"absolute_numbers":19606,"per_100000":2459.9},"congenital_nervous":{"absolute_numbers":534,"per_100000":67.0},"congenital_hip":{"absolute_numbers":2438,"per_100000":305.9},"sex_ambiguity":{"absolute_numbers":3,"per_100000":0.38},"congenital_ichthyosis":{"absolute_numbers":70,"per_100000":8.2}},"2023":{"congenital_anomalies":{"absolute_numbers":44675,"per_100000":5561.9},"congenital_circulatory":{"absolute_numbers":21497,"per_100000":2676.3},"congenital_nervous":{"absolute_numbers":533,"per_100000":66.4},"congenital_hip":{"absolute_numbers":2245,"per_100000":279.5},"sex_ambiguity":{"absolute_numbers":3,"per_100000":0.37},"congenital_ichthyosis":{"absolute_numbers":76,"per_100000":9.5},"congenital_eye":{"absolute_numbers":1482,"per_100000":184.2},"congenital_female_genital":{"absolute_numbers":768,"per_100000":195.9}},"2024":{"congenital_anomalies":{"absolute_numbers":45195,"per_100000":5607.7},"congenital_circulatory":{"absolute_numbers":22484,"per_100000":2789.8},"congenital_nervous":{"absolute_numbers":535,"per_100000":66.4},"congenital_hip":{"absolute_numbers":1962,"per_100000":243.4},"sex_ambiguity":{"absolute_numbers":3,"per_100000":0.37},"congenital_ichthyosis":{"absolute_numbers":76,"per_100000":9.4},"congenital_female_genital":{"absolute_numbers":777,"per_100000":198.0},"congenital_eye":{"absolute_numbers":1489,"per_100000":184.8}}}},"regions":{"8":{"2015":{"congenital_anomalies":{"absolute_numbers":94125,"per_100000":4542.5},"congenital_circulatory":{"absolute_numbers":38611,"per_100000":1863.4},"congenital_nervous":{"absolute_numbers":2526,"per_100000":121.9},"congenital_hip":{"absolute_numbers":10458,"per_100000":504.7},"sex_ambiguity":{"absolute_numbers":19,"per_100000":0.92},"congenital_ichthyosis":{"absolute_numbers":228,"per_100000":11.0}},"2016":{"congenital_anomalies":{"absolute_numbers":100542,"per_100000":4635.1},"congenital_circulatory":{"absolute_numbers":43333,"per_100000":1997.7},"congenital_nervous":{"absolute_numbers":2674,"per_100000":123.3},"congenital_hip":{"absolute_numbers":10623,"per_100000":489.7},"sex_ambiguity":{"absolute_numbers":27,"per_100000":1.24},"congenital_ichthyosis":{"absolute_numbers":219,"per_100000":10.1}},"2017":{"congenital_anomalies":{"absolute_numbers":100086,"per_100000":4548.1},"congenital_circulatory":{"absolute_numbers":43597,"per_100000":1981.1},"congenital_nervous":{"absolute_numbers":2618,"per_100000":119.0},"congenital_hip":{"absolute_numbers":10952,"per_100000":497.7},"sex_ambiguity":{"absolute_numbers":17,"per_100000":0.77},"congenital_ichthyosis":{"absolute_numbers":191,"per_100000":8.7}},"2018":{"congenital_anomalies":{"absolute_numbers":101439,"per_100000":4508.4},"congenital_circulatory":{"absolute_numbers":47465,"per_100000":2109.6},"congenital_nervous":{"absolute_numbers":2470,"per_100000":109.8},"congenital_hip":{"absolute_numbers":9461,"per_100000":420.5},"sex_ambiguity":{"absolute_numbers":12,"per_100000":0.53},"congenital_ichthyosis":{"absolute_numbers":164,"per_100000":7.3}},"2019":{"congenital_anomalies":{"absolute_numbers":102697,"per_100000":4541.2},"congenital_circulatory":{"absolute_numbers":48491,"per_100000":2144.3},"congenital_nervous":{"absolute_numbers":2269,"per_100000":100.3},"congenital_hip":{"absolute_numbers":8455,"per_100000":373.9},"sex_ambiguity":{"absolute_numbers":16,"per_100000":0.71},"congenital_ichthyosis":{"absolute_numbers":166,"per_100000":7.3}},"2020":{"congenital_anomalies":{"absolute_numbers":94341,"per_100000":4145.5},"congenital_circulatory":{"absolute_numbers":47455,"per_100000":2085.2},"congenital_nervous":{"absolute_numbers":2174,"per_100000":95.5},"congenital_hip":{"absolute_numbers":6969,"per_100000":306.2},"sex_ambiguity":{"absolute_numbers":8,"per_100000":0.35},"congenital_ichthyosis":{"absolute_numbers":158,"per_100000":6.9}},"2021":{"congenital_anomalies":{"absolute_numbers":104570,"per_100000":4588.7},"congenital_circulatory":{"absolute_numbers":52219,"per_100000":2291.5},"congenital_nervous":{"absolute_numbers":2043,"per_100000":89.7},"congenital_hip":{"absolute_numbers":6888,"per_100000":302.3},"sex_ambiguity":{"absolute_numbers":11,"per_100000":0.48},"congenital_ichthyosis":{"absolute_numbers":165,"per_100000":165.0}},"2022":{"congenital_anomalies":{"absolute_numbers":103236,"per_100000":4815.6},"congenital_circulatory":{"absolute_numbers":51980,"per_100000":2424.7},"congenital_nervous":{"absolute_numbers":2111,"per_100000":98.5},"congenital_hip":{"absolute_numbers":6184,"per_100000":288.5},"sex_ambiguity":{"absolute_numbers":10,"per_100000":0.47},"congenital_ichthyosis":{"absolute_numbers":191,"per_100000":8.9}},"2023":{"congenital_anomalies":{"absolute_numbers":110548,"per_100000":5184.7},"congenital_circulatory":{"absolute_numbers":57454,"per_100000":2694.6},"congenital_nervous":{"absolute_numbers":2070,"per_100000":97.1},"congenital_hip":{"absolute_numbers":5983,"per_100000":280.6},"sex_ambiguity":{"absolute_numbers":14,"per_100000":0.66},"congenital_ichthyosis":{"absolute_numbers":212,"per_100000":9.9},"congenital_eye":{"absolute_numbers":3296,"per_100000":155.4},"congenital_female_genital":{"absolute_numbers":1122,"per_100000":108.8}},"2024":{"congenital_anomalies":{"absolute_numbers":118784,"per_100000":5631.6},"congenital_circulatory":{"absolute_numbers":63036,"per_100000":2988.6},"congenital_nervous":{"absolute_numbers":2074,"per_100000":98.3},"congenital_hip":{"absolute_numbers":5396,"per_100000":255.8},"sex_ambiguity":{"absolute_numbers":7,"per_100000":0.33},"congenital_ichthyosis":{"absolute_numbers":211,"per_100000":10.0},"congenital_female_genital":{"absolute_numbers":1171,"per_100000":114.2},"congenital_eye":{"absolute_numbers":3256,"per_100000":154.4}}}}};
+            const CATEGORY_META = [{"key":"congenital_anomalies","label":"Врожденные аномалии (всего)"},{"key":"congenital_circulatory","label":"Аномалии системы кровообращения"},{"key":"congenital_nervous","label":"Аномалии нервной системы"},{"key":"congenital_hip","label":"Врожденные деформации бедра"},{"key":"sex_ambiguity","label":"Неопределенность пола / псевдогермафродитизм"},{"key":"congenital_ichthyosis","label":"Врожденный ихтиоз"},{"key":"congenital_female_genital","label":"Аномалии женских половых органов"},{"key":"congenital_eye","label":"Аномалии глаза"}];
+
+            function mergeExcelExtraIntoMapdata() {
+                try {
+                    if (!window.simplemaps_countrymap_mapdata) return;
+
+                    // Штаты (регионы)
+                    const stExtra = (EXCEL_EXTRA && EXCEL_EXTRA.states) ? EXCEL_EXTRA.states : {};
+                    for (const [code, years] of Object.entries(stExtra)) {
+                        const st = simplemaps_countrymap_mapdata.state_specific && simplemaps_countrymap_mapdata.state_specific[code];
+                        if (!st) continue;
+                        st.morbidity = st.morbidity || {};
+                        for (const [year, cats] of Object.entries(years)) {
+                            st.morbidity[year] = st.morbidity[year] || {};
+                            for (const [catKey, val] of Object.entries(cats)) {
+                                st.morbidity[year][catKey] = val;
+                            }
+                        }
+                    }
+
+                    // СЗФО как регион simplemaps (id "8")
+                    const regExtra = (EXCEL_EXTRA && EXCEL_EXTRA.regions) ? EXCEL_EXTRA.regions : {};
+                    const reg8 = regExtra["8"];
+                    if (reg8 && simplemaps_countrymap_mapdata.regions && simplemaps_countrymap_mapdata.regions["8"]) {
+                        const r = simplemaps_countrymap_mapdata.regions["8"];
+                        r.morbidity = r.morbidity || {};
+                        for (const [year, cats] of Object.entries(reg8)) {
+                            r.morbidity[year] = r.morbidity[year] || {};
+                            for (const [catKey, val] of Object.entries(cats)) {
+                                r.morbidity[year][catKey] = val;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Не удалось применить данные Excel:', e);
+                }
+            }
+
+            function formatRate(v) {
+                return (v === null || v === undefined || !isFinite(v)) ? '-' : Number(v).toFixed(1);
+            }
+
+            function renderCategoryTable(morbYear) {
+                if (!morbYear) return '';
+                let t = '<table class="data-table" style="margin-top:10px;">';
+                t += '<tr><th>Показатель</th><th>Абс. число</th><th>На 100 000</th></tr>';
+                for (const meta of CATEGORY_META) {
+                    const rec = morbYear[meta.key];
+                    if (!rec || rec.absolute_numbers === undefined || rec.absolute_numbers === null) continue;
+                    const abs = Number(rec.absolute_numbers);
+                    const absStr = isFinite(abs) ? abs.toLocaleString() : String(rec.absolute_numbers);
+                    t += `<tr><td>${meta.label}</td><td>${absStr}</td><td>${formatRate(rec.per_100000)}</td></tr>`;
+                }
+                t += '</table>';
+                return t;
+            }
+
+
 
             // Скрываем все регионы, которые не входят в СЗФО
             for (const regionCode in simplemaps_countrymap_mapdata.state_specific) {
@@ -184,6 +253,177 @@
                 }
             }
             
+            mergeExcelExtraIntoMapdata();
+
+            // Кэшируем исходные настройки границ, чтобы подсветка не ломала раскраску по данным
+            function cacheOriginalBorders() {
+                for (const code of szfoRegions) {
+                    const region = simplemaps_countrymap_mapdata.state_specific[code];
+                    if (!region) continue;
+                    if (!originalBorders[code]) {
+                        originalBorders[code] = {
+                            border_color: (region.border_color !== undefined ? region.border_color : simplemaps_countrymap_mapdata.main_settings.border_color),
+                            border_size: (region.border_size !== undefined ? region.border_size : simplemaps_countrymap_mapdata.main_settings.border_size)
+                        };
+                    }
+                }
+            }
+
+function getStatePathElements(code) {
+    const mapEl = document.getElementById('map');
+    if (!mapEl) return [];
+
+    // simplemaps (Raphael) обычно ставит класс вида "sm_state sm_state_RUMUR" на path
+    let candidates = Array.from(mapEl.querySelectorAll(`.sm_state_${code}`));
+
+    if (!candidates.length) {
+        const byId = mapEl.querySelector(`#${code}`);
+        if (byId) candidates = [byId];
+    }
+    if (!candidates.length) {
+        const byData = mapEl.querySelector(`[data-id="${code}"]`);
+        if (byData) candidates = [byData];
+    }
+
+    const paths = [];
+    for (const el of candidates) {
+        if (!el) continue;
+        if (el.tagName && el.tagName.toLowerCase() === 'path') {
+            paths.push(el);
+        } else {
+            paths.push(...Array.from(el.querySelectorAll('path')));
+        }
+    }
+    return paths;
+}
+
+
+function applySelectionStyles() {
+    // Подсветка выбранных регионов (без чёрной обводки)
+    for (const code of szfoRegions) {
+        const paths = getStatePathElements(code);
+        if (!paths.length) continue;
+
+        if (selectedRegions.has(code)) {
+            for (const p of paths) {
+                // Никакой обводки: только лёгкое "свечение"
+                p.style.stroke = "none";
+                p.style.strokeWidth = "0";
+                p.style.paintOrder = "fill";
+                p.style.filter = "drop-shadow(0 0 6px rgba(0,123,255,0.85))";
+            }
+        } else {
+            for (const p of paths) {
+                p.style.removeProperty('stroke');
+                p.style.removeProperty('stroke-width');
+                p.style.removeProperty('stroke-linejoin');
+                p.style.removeProperty('stroke-linecap');
+                p.style.removeProperty('paint-order');
+                p.style.removeProperty('filter');
+            }
+        }
+    }
+}
+
+function showMultiRegionData() {
+                const selectedYear = yearSelect.value;
+                const list = Array.from(selectedRegions);
+
+                if (list.length === 0) {
+                    showSzfoData();
+                    return;
+                }
+                if (list.length === 1) {
+                    showRegionData(list[0]);
+                    return;
+                }
+
+                currentSelectedRegionId = null;
+                currentViewMode = 'multi';
+
+                let html = `<div class="highlight">Выбрано регионов: ${list.length}</div>`;
+                html += '<table class="data-table">';
+                html += '<tr><th>Регион</th><th>Абс. число</th><th>На 100 000</th></tr>';
+
+                let sumAbs = 0;
+
+                for (const code of list) {
+                    const region = simplemaps_countrymap_mapdata.state_specific[code];
+                    if (!region || !region.morbidity) continue;
+
+                    let yearToUse = selectedYear;
+                    if (!region.morbidity[yearToUse]) {
+                        const years = Object.keys(region.morbidity).sort().reverse();
+                        yearToUse = years[0] || selectedYear;
+                    }
+
+                    const data = region.morbidity[yearToUse] && region.morbidity[yearToUse].congenital_anomalies;
+                    if (!data) continue;
+
+                    sumAbs += data.absolute_numbers;
+
+                    html += `<tr>
+                                <td>${region.name}</td>
+                                <td>${data.absolute_numbers.toLocaleString()}</td>
+                                <td>${data.per_100000.toFixed(1)}${yearToUse !== selectedYear ? ` <span style="color:#777">(за ${yearToUse})</span>` : ''}</td>
+                             </tr>`;
+                }
+
+                html += '</table>';
+                html += `<div style="margin-top:10px;"><strong>Сумма (абс. число):</strong> ${sumAbs.toLocaleString()}</div>`;
+
+                regionInfo.innerHTML = html;
+            }
+
+            // Для некоторых регионов (например, Мурманская область) bbox включает «маленькие» выбросы,
+            // из‑за чего при зуме регион уезжает вниз. Чиним, беря bbox крупнейшего подконтура.
+
+
+function handleRegionClick(regionId, multiSelect) {
+    if (!szfoRegions.includes(regionId)) return;
+
+    if (!multiSelect) {
+        // Обычный клик: одиночный выбор
+        selectedRegions.clear();
+        selectedRegions.add(regionId);
+    } else {
+        // Ctrl/Cmd+клик: переключаем выбор региона, не зумим
+        if (selectedRegions.has(regionId)) {
+            selectedRegions.delete(regionId);
+        } else {
+            selectedRegions.add(regionId);
+        }
+    }
+
+    applySelectionStyles();
+
+    if (selectedRegions.size === 0) {
+        currentSelectedRegionId = null;
+        currentViewMode = 'district';
+        zoomToSzfo();
+        showSzfoData();
+        return;
+    }
+
+    if (selectedRegions.size === 1) {
+        const onlyId = Array.from(selectedRegions)[0];
+        currentSelectedRegionId = onlyId;
+        currentViewMode = 'region';
+        showRegionData(onlyId);
+
+        // Зумим только на одиночном клике без Ctrl/Cmd
+        if (!multiSelect && typeof simplemaps_countrymap !== 'undefined' && simplemaps_countrymap.state_zoom) {
+            simplemaps_countrymap.state_zoom(onlyId);
+        }
+        return;
+    }
+
+    // Мультивыбор: показываем сводку, без зума
+    currentSelectedRegionId = null;
+    currentViewMode = 'multi';
+    showMultiRegionData();
+}
+
             // Функция обновления данных регионов для выбранного года
             function updateRegionsForYear(year) {
                 for (const regionCode of szfoRegions) {
@@ -244,49 +484,53 @@
             }
             
             // Функция показа данных региона
+            
             function showRegionData(regionId) {
                 const region = simplemaps_countrymap_mapdata.state_specific[regionId];
                 const selectedYear = yearSelect.value;
-                
+
                 if (!region) {
                     regionInfo.innerHTML = '<div class="highlight">Регион не найден</div>';
                     return;
                 }
-                
+
                 currentSelectedRegionId = regionId;
                 currentViewMode = 'region';
-                
+
                 let html = `<div class="highlight">${region.name}</div>`;
-                
+
                 if (region.morbidity) {
+                    let yearToUse = null;
                     if (region.morbidity[selectedYear]) {
-                        const data = region.morbidity[selectedYear].congenital_anomalies;
-                        html += `
-                            <div><strong>Данные за ${selectedYear} год:</strong></div>
-                            <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
-                            <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
-                        `;
+                        yearToUse = selectedYear;
                     } else {
                         const years = Object.keys(region.morbidity).sort().reverse();
-                        if (years.length > 0) {
-                            const latestYear = years[0];
-                            const data = region.morbidity[latestYear].congenital_anomalies;
-                            html += `
-                                <div><strong>Данные за ${latestYear} год (${selectedYear} недоступен):</strong></div>
-                                <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
-                                <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
-                            `;
-                        } else {
-                            html += '<div>Данные о заболеваемости отсутствуют</div>';
-                        }
+                        if (years.length > 0) yearToUse = years[0];
                     }
-                    
+
+                    if (yearToUse) {
+                        const total = region.morbidity[yearToUse].congenital_anomalies;
+                        html += `
+                            <div><strong>Данные за ${yearToUse} год${yearToUse !== selectedYear ? ` (${selectedYear} недоступен)` : ''}:</strong></div>
+                            <div>Абсолютное число случаев (всего): ${total.absolute_numbers.toLocaleString()}</div>
+                            <div>На 100 000 населения: ${total.per_100000.toFixed(1)}</div>
+                        `;
+
+                        // Детализация по нозологиям (из Excel)
+                        html += `<div style="margin-top:10px;"><strong>Детализация:</strong></div>`;
+                        html += renderCategoryTable(region.morbidity[yearToUse]);
+                    } else {
+                        html += '<div>Данные о заболеваемости отсутствуют</div>';
+                    }
+
+                    // Динамика (только "всего")
                     html += '<table class="data-table">';
                     html += '<tr><th>Год</th><th>Абс. число</th><th>На 100 000</th></tr>';
-                    
+
                     const years = Object.keys(region.morbidity).sort().reverse();
                     years.forEach(year => {
                         const data = region.morbidity[year].congenital_anomalies;
+                        if (!data) return;
                         html += `
                             <tr>
                                 <td>${year}</td>
@@ -295,95 +539,101 @@
                             </tr>
                         `;
                     });
-                    
+
                     html += '</table>';
                 } else {
                     html += '<div>Данные о заболеваемости отсутствуют</div>';
                 }
-                
+
                 regionInfo.innerHTML = html;
             }
+
             
             // Функция показа данных по СЗФО
+            
             function showSzfoData() {
                 const selectedYear = yearSelect.value;
                 const szfoData = simplemaps_countrymap_mapdata.regions['8'];
-                
+
                 if (!szfoData) {
                     regionInfo.innerHTML = '<div class="highlight">Данные по СЗФО не найдены</div>';
                     return;
                 }
-                
+
                 currentSelectedRegionId = null;
                 currentViewMode = 'district';
-                
+
                 let html = `<div class="highlight">${szfoData.name} (Северо-Западный федеральный округ)</div>`;
-                
+
                 if (szfoData.morbidity) {
+                    let yearToUse = null;
                     if (szfoData.morbidity[selectedYear]) {
-                        const data = szfoData.morbidity[selectedYear].congenital_anomalies;
-                        html += `
-                            <div><strong>Данные за ${selectedYear} год:</strong></div>
-                            <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
-                            <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
-                        `;
-                        
-                        if (szfoData.births && szfoData.births[selectedYear]) {
-                            html += `<div>Количество рождений: ${szfoData.births[selectedYear].toLocaleString()}</div>`;
-                        }
+                        yearToUse = selectedYear;
                     } else {
                         const years = Object.keys(szfoData.morbidity).sort().reverse();
-                        if (years.length > 0) {
-                            const latestYear = years[0];
-                            const data = szfoData.morbidity[latestYear].congenital_anomalies;
-                            html += `
-                                <div><strong>Данные за ${latestYear} год (${selectedYear} недоступен):</strong></div>
-                                <div>Абсолютное число случаев: ${data.absolute_numbers.toLocaleString()}</div>
-                                <div>На 100 000 населения: ${data.per_100000.toFixed(1)}</div>
-                            `;
-                        } else {
-                            html += '<div>Данные о заболеваемости отсутствуют</div>';
-                        }
+                        if (years.length > 0) yearToUse = years[0];
                     }
-                    
+
+                    if (yearToUse) {
+                        const total = szfoData.morbidity[yearToUse].congenital_anomalies;
+                        html += `
+                            <div><strong>Данные за ${yearToUse} год${yearToUse !== selectedYear ? ` (${selectedYear} недоступен)` : ''}:</strong></div>
+                            <div>Абсолютное число случаев (всего): ${total.absolute_numbers.toLocaleString()}</div>
+                            <div>На 100 000 населения: ${total.per_100000.toFixed(1)}</div>
+                        `;
+
+                        if (szfoData.births && szfoData.births[yearToUse]) {
+                            html += `<div>Количество рождений: ${szfoData.births[yearToUse].toLocaleString()}</div>`;
+                        }
+
+                        html += `<div style="margin-top:10px;"><strong>Детализация:</strong></div>`;
+                        html += renderCategoryTable(szfoData.morbidity[yearToUse]);
+                    } else {
+                        html += '<div>Данные о заболеваемости отсутствуют</div>';
+                    }
+
+                    // Динамика (только "всего")
                     html += '<table class="data-table">';
                     html += '<tr><th>Год</th><th>Абс. число</th><th>На 100 000</th>';
-                    
                     if (szfoData.births && Object.keys(szfoData.births).length > 0) {
                         html += '<th>Рождений</th>';
                     }
-                    
                     html += '</tr>';
-                    
+
                     const years = Object.keys(szfoData.morbidity).sort().reverse();
                     years.forEach(year => {
                         const data = szfoData.morbidity[year].congenital_anomalies;
+                        if (!data) return;
                         html += `
                             <tr>
                                 <td>${year}</td>
                                 <td>${data.absolute_numbers.toLocaleString()}</td>
                                 <td>${data.per_100000.toFixed(1)}</td>`;
-                        
+
                         if (szfoData.births && szfoData.births[year]) {
                             html += `<td>${szfoData.births[year].toLocaleString()}</td>`;
                         } else if (szfoData.births) {
                             html += '<td>-</td>';
                         }
-                        
                         html += '</tr>';
                     });
-                    
+
                     html += '</table>';
                 } else {
                     html += '<div>Данные о заболеваемости отсутствуют</div>';
                 }
-                
+
                 regionInfo.innerHTML = html;
             }
+
             
             // Функция для настройки зума на СЗФО
             function zoomToSzfo() {
-                if (typeof simplemaps_countrymap !== 'undefined' && simplemaps_countrymap.zoomToRegion) {
+                if (typeof simplemaps_countrymap === 'undefined') return;
+                if (simplemaps_countrymap.region_zoom) {
+                    simplemaps_countrymap.region_zoom('8');
+                } else if (simplemaps_countrymap.zoomToRegion) {
+                    // На случай другой сборки simplemaps
                     simplemaps_countrymap.zoomToRegion('8');
                 }
             }
@@ -401,18 +651,48 @@
                             updateRegionsForYear(currentYear);
                             simplemaps_countrymap.refresh();
                             
+                            cacheOriginalBorders();
+                            simplemaps_countrymap.ignore_clicks = true;
                             document.getElementById('map').addEventListener('click', function(e) {
-                                let target = e.target;
-                                while (target && !target.getAttribute('data-id')) {
-                                    target = target.parentElement;
+                                const multi = e.ctrlKey || e.metaKey;
+
+                                // Пытаемся извлечь код региона из data-id / id / class (sm_state_RUXXX)
+                                function extractRegionId(node) {
+                                    let t = node;
+                                    const mapEl = document.getElementById('map');
+                                    while (t && t !== mapEl) {
+                                        if (t.getAttribute) {
+                                            const did = t.getAttribute('data-id');
+                                            if (did) return did;
+
+                                            const id = t.getAttribute('id');
+                                            if (id && /^RU[A-Z0-9]+$/.test(id)) return id;
+
+                                            const cls = t.getAttribute('class');
+                                            if (cls) {
+                                                const m = cls.match(/sm_state_([A-Z0-9]+)/);
+                                                if (m) return m[1];
+                                            }
+                                        }
+                                        t = t.parentElement;
+                                    }
+                                    // Иногда клик прилетает прямо по <path>, без родителя с атрибутами
+                                    if (node && node.classList) {
+                                        for (const c of node.classList) {
+                                            const m = String(c).match(/^sm_state_([A-Z0-9]+)$/);
+                                            if (m) return m[1];
+                                        }
+                                    }
+                                    return null;
                                 }
-                                
-                                if (target && target.getAttribute('data-id')) {
-                                    const regionId = target.getAttribute('data-id');
-                                    showRegionData(regionId);
-                                }
+
+                                const regionId = extractRegionId(e.target);
+                                if (!regionId) return;
+
+                                e.preventDefault();
+                                handleRegionClick(regionId, multi);
                             });
-                            
+
                             setTimeout(() => {
                                 zoomToSzfo();
                             }, 500);
@@ -440,9 +720,13 @@
                 
                 if (currentViewMode === 'region' && currentSelectedRegionId) {
                     showRegionData(currentSelectedRegionId);
+                } else if (currentViewMode === 'multi') {
+                    showMultiRegionData();
                 } else {
                     showSzfoData();
                 }
+
+                applySelectionStyles();
             });
             
             // Инициализируем карту
